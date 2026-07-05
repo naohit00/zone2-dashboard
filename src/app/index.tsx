@@ -65,7 +65,7 @@ export default function HomeScreen() {
     return { monthTotal, yearTotal, activeDays };
   };
 
-  // 🔥 共通ロード
+  // 共通ロード
   const reload = async () => {
     const json = await AsyncStorage.getItem(STORAGE_KEY);
     const obj = json ? JSON.parse(json) : {};
@@ -110,45 +110,6 @@ export default function HomeScreen() {
     await reload();
 
     Alert.alert("保存完了", "登録しました");
-  };
-
-  // ✅ 安定版削除（あなたの動いてる方式そのまま採用）
-  const deleteToday = async () => {
-    const json = await AsyncStorage.getItem(STORAGE_KEY);
-    const obj = json ? JSON.parse(json) : {};
-
-    const key = dateInfo.key;
-
-    if (obj[key] === undefined) {
-      Alert.alert("削除対象なし", "この日はまだ登録されていません");
-      return;
-    }
-
-    Alert.alert(
-      "削除確認",
-      "この日のデータを削除しますか？",
-      [
-        { text: "キャンセル", style: "cancel" },
-        {
-          text: "削除する",
-          style: "destructive",
-          onPress: async () => {
-            delete obj[key]; // ←ここが重要（0上書きじゃない）
-
-            await AsyncStorage.setItem(
-              STORAGE_KEY,
-              JSON.stringify(obj)
-            );
-
-            await reload();
-
-            setSelectedMinutes(null);
-
-            Alert.alert("削除完了", "データを削除しました");
-          },
-        },
-      ]
-    );
   };
 
   const exists = data[dateInfo.key] !== undefined && data[dateInfo.key] !== 0;
@@ -262,25 +223,6 @@ export default function HomeScreen() {
 
         </View>
       </ScrollView>
-
-      {/* 削除ボタン（UIそのまま） */}
-      <Pressable
-        onPress={deleteToday}
-        style={{
-          position: "absolute",
-          bottom: 20,
-          right: 20,
-          backgroundColor: "#dc2626",
-          paddingVertical: 12,
-          paddingHorizontal: 16,
-          borderRadius: 999,
-          elevation: 5,
-        }}
-      >
-        <Text style={{ color: "white", fontWeight: "bold" }}>
-          削除
-        </Text>
-      </Pressable>
     </View>
   );
 }

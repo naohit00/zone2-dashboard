@@ -11,9 +11,6 @@ const formatKey = (date: Date) => {
   return `${y}-${m}-${d}`;
 };
 
-// 月曜始まり
-const WEEK = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
-
 export default function CalendarScreen() {
   const [data, setData] = useState<Record<string, number>>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -22,11 +19,14 @@ export default function CalendarScreen() {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
+  const weekLabels = ["月", "火", "水", "木", "金", "土", "日"];
+
+  const load = async () => {
+    const json = await AsyncStorage.getItem(STORAGE_KEY);
+    setData(json ? JSON.parse(json) : {});
+  };
+
   useEffect(() => {
-    const load = async () => {
-      const json = await AsyncStorage.getItem(STORAGE_KEY);
-      setData(json ? JSON.parse(json) : {});
-    };
     load();
   }, [currentDate]);
 
@@ -40,6 +40,10 @@ export default function CalendarScreen() {
     setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
+  const goToday = () => {
+    setCurrentDate(new Date());
+  };
+
   const getBar = (value: number) => {
     if (value >= 40) return { symbol: "█", color: "#111" };
     if (value >= 30) return { symbol: "▆", color: "#ff8c00" };
@@ -47,133 +51,118 @@ export default function CalendarScreen() {
     return { symbol: "○", color: "#ccc" };
   };
 
-  // 月曜始まりの開始日
-  const getStartDate = () => {
-    const first = new Date(year, month, 1);
-    const day = first.getDay(); // 0=日
-    const diff = (day + 6) % 7; // 月曜基準
-    const start = new Date(first);
-    start.setDate(first.getDate() - diff);
-    return start;
-  };
+  const startOfMonth = new Date(year, month, 1);
+  const startDay = (startOfMonth.getDay() + 6) % 7;
 
-  const renderCalendar = () => {
-    const start = getStartDate();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
 
-    // 42日分生成
-    const cells: any[] = [];
+  const cells: { date: Date; key: string; inMonth: boolean }[] = [];
 
-    for (let i = 0; i < 42; i++) {
-      const date = new Date(start);
-      date.setDate(start.getDate() + i);
+  for (let i = startDay - 1; i >= 0; i--) {
+    const d = new Date(year, month - 1, daysInPrevMonth - i);
+    cells.push({ date: d, key: formatKey(d), inMonth: false });
+  }
 
-      const key = formatKey(date);
-      const value = getValue(key);
-      const bar = getBar(value);
+  for (let i = 1; i <= daysInMonth; i++) {
+    const d = new Date(year, month, i);
+    cells.push({ date: d, key: formatKey(d), inMonth: true });
+  }
 
-      const isToday = formatKey(new Date()) === key;
-      const isCurrentMonth = date.getMonth() === month;
-
-      cells.push({
-        key,
-        date,
-        value,
-        bar,
-        isToday,
-        isCurrentMonth,
-      });
-    }
-
-    // 7個ずつに分割
-    const rows: any[][] = [];
-    for (let i = 0; i < cells.length; i += 7) {
-      rows.push(cells.slice(i, i + 7));
-    }
-
-    return (
-      <View>
-        {/* 曜日 */}
-        <View style={{ flexDirection: "row", marginBottom: 6 }}>
-          {WEEK.map(w => (
-            <View key={w} style={{ flex: 1, alignItems: "center" }}>
-              <Text style={{ fontSize: 12, color: "#888" }}>{w}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* 本体（7列固定） */}
-        {rows.map((row, idx) => (
-          <View key={idx} style={{ flexDirection: "row" }}>
-            {row.map(item => (
-              <Pressable
-                key={item.key}
-                onPress={() => setSelectedDate(item.key)}
-                style={{
-                  flex: 1,
-                  aspectRatio: 1,
-                  margin: 2,
-                  borderRadius: 8,
-                  backgroundColor: item.isCurrentMonth ? "#fff" : "#f3f3f3",
-                  borderWidth: item.isToday ? 2 : 1,
-                  borderColor: item.isToday ? "#000" : "#eee",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  opacity: item.isCurrentMonth ? 1 : 0.35,
-                }}
-              >
-                <Text style={{ fontSize: 10 }}>
-                  {item.date.getDate()}
-                </Text>
-
-                <Text
-                  style={{
-                    fontSize: 18,
-                    color: item.bar.color,
-                  }}
-                >
-                  {item.bar.symbol}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        ))}
-      </View>
-    );
-  };
+  while (cells.length < 42) {
+    const last = cells[cells.length - 1].date;
+    const d = new Date(last);
+    d.setDate(d.getDate() + 1);
+    cells.push({ date: d, key: formatKey(d), inMonth: false });
+  }
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
       <View style={{ padding: 20 }}>
 
-        {/* タイトル */}
-        <Text style={{ fontSize: 22, fontWeight: "bold", marginBottom: 10 }}>
-          カレンダー
-        </Text>
+        {/* ヘッダー */}
+        <View style={{ marginBottom: 12 }}>
+          <Text style={{ textAlign: "center", fontSize: 18, fontWeight: "bold" }}>
 
-        {/* 月切替 */}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            marginBottom: 10,
-            alignItems: "center",
-          }}
-        >
-          <Pressable onPress={prevMonth}>
-            <Text style={{ fontSize: 24 }}>＜</Text>
-          </Pressable>
+            {"　　　"}
 
-          <Text style={{ fontSize: 16, color: "#666" }}>
+            <Text onPress={prevMonth} style={{ fontSize: 22 }}>
+              ＜
+            </Text>
+
+            {"　　"}
+
             {year}.{month + 1}
-          </Text>
 
-          <Pressable onPress={nextMonth}>
-            <Text style={{ fontSize: 24 }}>＞</Text>
-          </Pressable>
+            {"　　"}
+
+            <Text onPress={nextMonth} style={{ fontSize: 22 }}>
+              ＞
+            </Text>
+
+            {"　　　　"}
+
+            <Text
+              onPress={goToday}
+              style={{
+                color: "#2563eb",
+                fontWeight: "bold",
+              }}
+            >
+              今日
+            </Text>
+
+          </Text>
         </View>
 
-        {/* カレンダー */}
-        {renderCalendar()}
+        {/* 曜日 */}
+        <View style={{ flexDirection: "row", marginBottom: 6 }}>
+          {weekLabels.map(w => (
+            <Text
+              key={w}
+              style={{
+                flex: 1,
+                textAlign: "center",
+                fontSize: 12,
+                color: "#666",
+              }}
+            >
+              {w}
+            </Text>
+          ))}
+        </View>
+
+        {/* カレンダー（7列固定） */}
+        <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+          {cells.map(cell => {
+            const value = getValue(cell.key);
+            const bar = getBar(value);
+            const isToday = formatKey(new Date()) === cell.key;
+
+            return (
+              <Pressable
+                key={cell.key}
+                onPress={() => setSelectedDate(cell.key)}
+                style={{
+                  width: "14.28%",
+                  aspectRatio: 1,
+                  borderWidth: isToday ? 2 : 1,
+                  borderColor: isToday ? "#000" : "#eee",
+                  backgroundColor: cell.inMonth ? "#fff" : "#f0f0f0",
+                  justifyContent: "center",
+                  alignItems: "center",
+
+                  borderRadius: 10, // ←ここ追加（角丸）
+                }}
+              >
+                <Text style={{ fontSize: 10 }}>{cell.date.getDate()}</Text>
+                <Text style={{ fontSize: 18, color: bar.color }}>
+                  {bar.symbol}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
         {/* 詳細 */}
         {selectedDate && (
@@ -185,10 +174,7 @@ export default function CalendarScreen() {
               borderRadius: 12,
             }}
           >
-            <Text style={{ fontSize: 14, color: "#666" }}>
-              {selectedDate}
-            </Text>
-
+            <Text style={{ color: "#666" }}>{selectedDate}</Text>
             <Text style={{ fontSize: 22, fontWeight: "bold" }}>
               {data[selectedDate] || 0} 分
             </Text>
