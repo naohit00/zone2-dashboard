@@ -1,98 +1,224 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+const STORAGE_KEY = "zone2_data";
 
 export default function HomeScreen() {
+  const [data, setData] = useState<Record<string, number>>({});
+  const [todayMinutes, setTodayMinutes] = useState(0);
+
+  const [summary, setSummary] = useState({
+    monthTotal: 0,
+    yearTotal: 0,
+    activeDays: 0,
+  });
+
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const DEBUG_YESTERDAY = false;
+
+  // ----------------------------
+  // 日付キー
+  // ----------------------------
+  const getDateKey = () => {
+    const d = new Date();
+
+    if (DEBUG_YESTERDAY) {
+      d.setDate(d.getDate() - 1);
+    }
+
+    return d.toISOString().split("T")[0];
+  };
+
+  // ----------------------------
+  // カレンダー日付生成
+  // ----------------------------
+  const getMonthDays = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const days: string[] = [];
+
+    for (let i = 1; i <= daysInMonth; i++) {
+      const d = new Date(year, month, i);
+      days.push(d.toISOString().split("T")[0]);
+    }
+
+    return days;
+  };
+
+  // ----------------------------
+  // 値取得
+  // ----------------------------
+  const getValueByDate = (date: string) => {
+    return data[date] || 0;
+  };
+
+  // ----------------------------
+  // 集計
+  // ----------------------------
+  const getSummary = (obj: Record<string, number>) => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+
+    let monthTotal = 0;
+    let yearTotal = 0;
+    let activeDays = 0;
+
+    Object.entries(obj).forEach(([key, value]) => {
+      const date = new Date(key);
+
+      if (date.getFullYear() === year) {
+        yearTotal += value;
+      }
+
+      if (date.getFullYear() === year && date.getMonth() === month) {
+        monthTotal += value;
+        activeDays += 1;
+      }
+    });
+
+    return { monthTotal, yearTotal, activeDays };
+  };
+
+  // ----------------------------
+  // 初期ロード
+  // ----------------------------
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    const json = await AsyncStorage.getItem(STORAGE_KEY);
+    const obj = json ? JSON.parse(json) : {};
+
+    setData(obj);
+
+    const key = getDateKey();
+    setTodayMinutes(obj[key] || 0);
+
+    setSummary(getSummary(obj));
+  };
+
+  // ----------------------------
+  // 保存
+  // ----------------------------
+  const saveData = async (newValue: number) => {
+    const json = await AsyncStorage.getItem(STORAGE_KEY);
+    const obj = json ? JSON.parse(json) : {};
+
+    const key = getDateKey();
+    obj[key] = newValue;
+
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
+
+    setData(obj);
+    setSummary(getSummary(obj));
+  };
+
+  const addMinutes = (min: number) => {
+    const newValue = todayMinutes + min;
+    setTodayMinutes(newValue);
+    saveData(newValue);
+  };
+
+  // ----------------------------
+  // UI
+  // ----------------------------
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+    <ScrollView style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
+      <View style={{ padding: 24 }}>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+        <Text style={{ fontSize: 28, fontWeight: "bold", marginBottom: 20 }}>
+          Zone2 Dashboard
+        </Text>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+        {/* 今日 */}
+        <View style={{ backgroundColor: "white", padding: 20, borderRadius: 12, marginBottom: 20 }}>
+          <Text style={{ fontSize: 16, color: "gray" }}>
+            {getDateKey()}
+          </Text>
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+          <Text style={{ fontSize: 18 }}>今日の合計</Text>
+
+          <Text style={{ fontSize: 32, fontWeight: "bold" }}>
+            {todayMinutes} 分
+          </Text>
+        </View>
+
+        {/* ダッシュボード */}
+        <View style={{ backgroundColor: "white", padding: 20, borderRadius: 12, marginBottom: 20 }}>
+          <Text>今月合計：{summary.monthTotal} 分</Text>
+          <Text>実施日数：{summary.activeDays} 日</Text>
+          <Text>今年合計：{summary.yearTotal} 分</Text>
+        </View>
+
+        {/* カレンダー */}
+        <View style={{ backgroundColor: "white", padding: 16, borderRadius: 12, marginBottom: 20 }}>
+          <Text style={{ fontSize: 18, fontWeight: "bold", marginBottom: 10 }}>
+            今月カレンダー
+          </Text>
+
+          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+            {getMonthDays().map((date) => {
+              const value = getValueByDate(date);
+
+              return (
+                <Pressable
+                  key={date}
+                  onPress={() => setSelectedDate(date)}
+                  style={{
+                    width: "14%",
+                    aspectRatio: 1,
+                    margin: 2,
+                    backgroundColor:
+                      value === 0 ? "#eee" : value < 30 ? "#999" : "#222",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    borderRadius: 6,
+                  }}
+                >
+                  <Text style={{ fontSize: 10, color: "white" }}>
+                    {new Date(date).getDate()}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* 選択詳細 */}
+        {selectedDate && (
+          <View style={{ backgroundColor: "white", padding: 20, borderRadius: 12, marginBottom: 20 }}>
+            <Text style={{ fontSize: 16, color: "gray" }}>
+              {selectedDate}
+            </Text>
+
+            <Text style={{ fontSize: 22, fontWeight: "bold" }}>
+              {data[selectedDate] || 0} 分
+            </Text>
+          </View>
+        )}
+
+        {/* ボタン */}
+        <Pressable onPress={() => addMinutes(20)} style={{ backgroundColor: "#222", padding: 16, borderRadius: 10, marginBottom: 10 }}>
+          <Text style={{ color: "white" }}>+20分</Text>
+        </Pressable>
+
+        <Pressable onPress={() => addMinutes(30)} style={{ backgroundColor: "#444", padding: 16, borderRadius: 10, marginBottom: 10 }}>
+          <Text style={{ color: "white" }}>+30分</Text>
+        </Pressable>
+
+        <Pressable onPress={() => addMinutes(40)} style={{ backgroundColor: "#666", padding: 16, borderRadius: 10 }}>
+          <Text style={{ color: "white" }}>+40分</Text>
+        </Pressable>
+
+      </View>
+    </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
-});
