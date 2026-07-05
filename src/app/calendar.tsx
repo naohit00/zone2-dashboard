@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 const STORAGE_KEY = "zone2_data";
@@ -12,7 +13,7 @@ const formatKey = (date: Date) => {
 };
 
 export default function CalendarScreen() {
-  const [data, setData] = useState<Record<string, number>>({});
+  const [data, setData] = useState<Record<string, any>>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -26,11 +27,30 @@ export default function CalendarScreen() {
     setData(json ? JSON.parse(json) : {});
   };
 
+  // ✅ タブに戻ったとき必ず再読み込み
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [])
+  );
+
   useEffect(() => {
     load();
   }, [currentDate]);
 
-  const getValue = (key: string) => data[key] || 0;
+  const getValue = (key: string) => {
+    const v = data[key];
+    if (!v) return 0;
+    if (typeof v === "number") return v;
+    if (typeof v === "object") return v.minutes ?? 0;
+    return 0;
+  };
+
+  const getMemo = (key: string) => {
+    const v = data[key];
+    if (v && typeof v === "object") return v.memo ?? "";
+    return "";
+  };
 
   const prevMonth = () => {
     setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
@@ -45,10 +65,10 @@ export default function CalendarScreen() {
   };
 
   const getBar = (value: number) => {
-    if (value >= 40) return { symbol: "█", color: "#111" };
-    if (value >= 30) return { symbol: "▆", color: "#ff8c00" };
-    if (value >= 20) return { symbol: "▂", color: "#1e90ff" };
-    return { symbol: "○", color: "#ccc" };
+    if (value >= 40) return { symbol: "█", color: "#7C3AED" };
+    if (value >= 30) return { symbol: "▆", color: "#2563EB" };
+    if (value >= 20) return { symbol: "▂", color: "#10B981" };
+    return { symbol: "○", color: "#CBD5E1" };
   };
 
   const startOfMonth = new Date(year, month, 1);
@@ -76,83 +96,76 @@ export default function CalendarScreen() {
     cells.push({ date: d, key: formatKey(d), inMonth: false });
   }
 
+  const todayKey = formatKey(new Date());
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
       <View style={{ padding: 20 }}>
 
         {/* ヘッダー */}
-        <View style={{ marginBottom: 12 }}>
-          <Text style={{ textAlign: "center", fontSize: 18, fontWeight: "bold" }}>
+        <View style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 14,
+        }}>
+          <Pressable onPress={prevMonth}>
+            <Text style={{ fontSize: 22 }}>＜</Text>
+          </Pressable>
 
-            {"　　　"}
-
-            <Text onPress={prevMonth} style={{ fontSize: 22 }}>
-              ＜
-            </Text>
-
-            {"　　"}
-
+          <Text style={{ fontSize: 18, fontWeight: "bold" }}>
             {year}.{month + 1}
-
-            {"　　"}
-
-            <Text onPress={nextMonth} style={{ fontSize: 22 }}>
-              ＞
-            </Text>
-
-            {"　　　　"}
-
-            <Text
-              onPress={goToday}
-              style={{
-                color: "#2563eb",
-                fontWeight: "bold",
-              }}
-            >
-              今日
-            </Text>
-
           </Text>
+
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Pressable onPress={goToday} style={{ marginRight: 16 }}>
+              <Text style={{ color: "#2563EB", fontWeight: "bold" }}>
+                今日
+              </Text>
+            </Pressable>
+
+            <Pressable onPress={nextMonth}>
+              <Text style={{ fontSize: 22 }}>＞</Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* 曜日 */}
         <View style={{ flexDirection: "row", marginBottom: 6 }}>
           {weekLabels.map(w => (
-            <Text
-              key={w}
-              style={{
-                flex: 1,
-                textAlign: "center",
-                fontSize: 12,
-                color: "#666",
-              }}
-            >
+            <Text key={w} style={{ flex: 1, textAlign: "center", fontSize: 12 }}>
               {w}
             </Text>
           ))}
         </View>
 
-        {/* カレンダー（7列固定） */}
+        {/* カレンダー */}
         <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
           {cells.map(cell => {
             const value = getValue(cell.key);
             const bar = getBar(value);
-            const isToday = formatKey(new Date()) === cell.key;
+
+            const isToday = cell.key === todayKey;
+            const isSelected = selectedDate === cell.key;
 
             return (
               <Pressable
                 key={cell.key}
                 onPress={() => setSelectedDate(cell.key)}
                 style={{
-                  width: "14.28%",
+                  width: "14.2857%",
                   aspectRatio: 1,
+                  borderRadius: 10,
+                  marginBottom: 2,
+                  backgroundColor: isSelected
+                    ? "#dbeafe"
+                    : cell.inMonth
+                    ? "#fff"
+                    : "#f0f0f0",
                   borderWidth: isToday ? 2 : 1,
-                  borderColor: isToday ? "#000" : "#eee",
-                  backgroundColor: cell.inMonth ? "#fff" : "#f0f0f0",
+                  borderColor: isToday ? "#2563EB" : "#e5e5e5",
                   justifyContent: "center",
                   alignItems: "center",
-
-                  borderRadius: 10, // ←ここ追加（角丸）
                 }}
               >
                 <Text style={{ fontSize: 10 }}>{cell.date.getDate()}</Text>
@@ -166,17 +179,13 @@ export default function CalendarScreen() {
 
         {/* 詳細 */}
         {selectedDate && (
-          <View
-            style={{
-              marginTop: 20,
-              backgroundColor: "#fff",
-              padding: 16,
-              borderRadius: 12,
-            }}
-          >
+          <View style={{ marginTop: 20, backgroundColor: "#fff", padding: 16, borderRadius: 12 }}>
             <Text style={{ color: "#666" }}>{selectedDate}</Text>
             <Text style={{ fontSize: 22, fontWeight: "bold" }}>
-              {data[selectedDate] || 0} 分
+              {getValue(selectedDate)} 分
+            </Text>
+            <Text style={{ marginTop: 8 }}>
+              {getMemo(selectedDate) || "メモなし"}
             </Text>
           </View>
         )}

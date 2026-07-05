@@ -1,10 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
 } from "react-native";
 
@@ -18,9 +20,10 @@ const formatKey = (date: Date) => {
 };
 
 export default function HomeScreen() {
-  const [data, setData] = useState<Record<string, number>>({});
+  const [data, setData] = useState<Record<string, any>>({});
   const [selectedMinutes, setSelectedMinutes] = useState<number | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [memo, setMemo] = useState("");
 
   const [summary, setSummary] = useState({
     monthTotal: 0,
@@ -42,7 +45,7 @@ export default function HomeScreen() {
 
   const dateInfo = formatDate(currentDate);
 
-  const calcSummary = (obj: Record<string, number>) => {
+  const calcSummary = (obj: Record<string, any>) => {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth();
@@ -54,10 +57,17 @@ export default function HomeScreen() {
     Object.entries(obj).forEach(([key, value]) => {
       const d = new Date(key);
 
-      if (d.getFullYear() === year) yearTotal += value;
+      const minutes =
+        typeof value === "number"
+          ? value
+          : value?.minutes ?? 0;
+
+      if (d.getFullYear() === year) {
+        yearTotal += minutes;
+      }
 
       if (d.getFullYear() === year && d.getMonth() === month) {
-        monthTotal += value;
+        monthTotal += minutes;
         activeDays += 1;
       }
     });
@@ -65,26 +75,38 @@ export default function HomeScreen() {
     return { monthTotal, yearTotal, activeDays };
   };
 
-  // 共通ロード
   const reload = async () => {
     const json = await AsyncStorage.getItem(STORAGE_KEY);
     const obj = json ? JSON.parse(json) : {};
 
     setData(obj);
     setSummary(calcSummary(obj));
+
+    setMemo(obj?.[dateInfo.key]?.memo ?? "");
+    setSelectedMinutes(obj?.[dateInfo.key]?.minutes ?? null);
   };
 
+  // 初回
   useEffect(() => {
     reload();
   }, []);
 
+  // タブ切り替え時（これが本体）
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [dateInfo.key])
+  );
+
   useEffect(() => {
     const value = data[dateInfo.key];
 
-    if (value === undefined || value === 0) {
+    if (!value) {
       setSelectedMinutes(null);
+      setMemo("");
     } else {
-      setSelectedMinutes(value);
+      setSelectedMinutes(value.minutes ?? null);
+      setMemo(value.memo ?? "");
     }
   }, [currentDate, data]);
 
@@ -103,7 +125,10 @@ export default function HomeScreen() {
     const json = await AsyncStorage.getItem(STORAGE_KEY);
     const obj = json ? JSON.parse(json) : {};
 
-    obj[dateInfo.key] = selectedMinutes;
+    obj[dateInfo.key] = {
+      minutes: selectedMinutes,
+      memo,
+    };
 
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
 
@@ -112,10 +137,12 @@ export default function HomeScreen() {
     Alert.alert("保存完了", "登録しました");
   };
 
-  const exists = data[dateInfo.key] !== undefined && data[dateInfo.key] !== 0;
+  const exists =
+    data[dateInfo.key] !== undefined &&
+    data[dateInfo.key] !== 0;
 
   const isChanged =
-    exists && data[dateInfo.key] !== selectedMinutes;
+    exists && data[dateInfo.key]?.minutes !== selectedMinutes;
 
   const statusText = !exists
     ? "未登録"
@@ -145,7 +172,8 @@ export default function HomeScreen() {
             </Text>
 
             <Pressable onPress={() => changeDay(1)}>
-              <Text style={{ fontSize: 22 }}>＞</Text>
+              <Text style={{ fontSize: 22 }}>＞
+              </Text>
             </Pressable>
           </View>
 
@@ -186,6 +214,24 @@ export default function HomeScreen() {
                 </Pressable>
               );
             })}
+          </View>
+
+          {/* Memo */}
+          <View style={{ marginBottom: 16 }}>
+            <TextInput
+              value={memo}
+              onChangeText={setMemo}
+              placeholder="メモ"
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              style={{
+                backgroundColor: "white",
+                padding: 12,
+                borderRadius: 10,
+                height: 100,
+              }}
+            />
           </View>
 
           {/* 保存 */}
