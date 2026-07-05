@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
 const STORAGE_KEY = "zone2_data";
@@ -27,22 +27,18 @@ export default function CalendarScreen() {
     setData(json ? JSON.parse(json) : {});
   };
 
+  // タブ復帰時リロード（expo-router版）
   useFocusEffect(
     useCallback(() => {
       load();
     }, [])
   );
 
-  useEffect(() => {
-    load();
-  }, [currentDate]);
-
   const getValue = (key: string) => {
     const v = data[key];
     if (!v) return 0;
     if (typeof v === "number") return v;
-    if (typeof v === "object") return v.minutes ?? 0;
-    return 0;
+    return v.minutes ?? 0;
   };
 
   const getMemo = (key: string) => {
@@ -97,6 +93,7 @@ export default function CalendarScreen() {
 
   const todayKey = formatKey(new Date());
 
+  // 月合計（表示している月ベースで正しく算出）
   const monthTotal = Object.entries(data).reduce((sum, [key, value]) => {
     const d = new Date(key);
 
@@ -195,7 +192,7 @@ export default function CalendarScreen() {
           })}
         </View>
 
-        {/* 月合計（右寄せ・1行） */}
+        {/* 月合計（右下・1行） */}
         <View
           style={{
             marginTop: 12,
@@ -222,10 +219,12 @@ export default function CalendarScreen() {
             borderRadius: 12,
           }}>
             <Text style={{ color: "#666" }}>{selectedDate}</Text>
+
             <Text style={{ fontSize: 22, fontWeight: "bold" }}>
               {getValue(selectedDate)} 分
             </Text>
-            <Text style={{ marginTop: 8 }}>
+
+            <Text style={{ marginTop: 8, color: "#444" }}>
               {getMemo(selectedDate) || "メモなし"}
             </Text>
           </View>

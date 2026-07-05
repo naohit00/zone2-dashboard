@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -74,32 +75,29 @@ export default function HomeScreen() {
     return { monthTotal, yearTotal, activeDays };
   };
 
-  const reload = async () => {
+  const load = async () => {
     const json = await AsyncStorage.getItem(STORAGE_KEY);
     const obj = json ? JSON.parse(json) : {};
 
     setData(obj);
     setSummary(calcSummary(obj));
 
-    setMemo(obj?.[dateInfo.key]?.memo ?? "");
-    setSelectedMinutes(obj?.[dateInfo.key]?.minutes ?? null);
+    const value = obj?.[dateInfo.key];
+
+    setMemo(value?.memo ?? "");
+    setSelectedMinutes(value?.minutes ?? null);
   };
 
-  useEffect(() => {
-    reload();
-  }, []);
+  // タブ復帰時に必ず最新化
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [dateInfo.key])
+  );
 
   useEffect(() => {
-    const value = data[dateInfo.key];
-
-    if (!value) {
-      setSelectedMinutes(null);
-      setMemo("");
-    } else {
-      setSelectedMinutes(value.minutes ?? null);
-      setMemo(value.memo ?? "");
-    }
-  }, [currentDate, data]);
+    load();
+  }, [currentDate]);
 
   const changeDay = (offset: number) => {
     const d = new Date(currentDate);
@@ -123,7 +121,7 @@ export default function HomeScreen() {
 
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
 
-    await reload();
+    await load(); // ← 保存後は必ず最新反映
 
     Alert.alert("保存完了", "登録しました");
   };
@@ -211,7 +209,7 @@ export default function HomeScreen() {
             })}
           </View>
 
-          {/* Memo（2行くらい） */}
+          {/* Memo（2行） */}
           <View style={{ marginBottom: 16 }}>
             <TextInput
               value={memo}
@@ -259,12 +257,15 @@ export default function HomeScreen() {
               実施日数：{summary.activeDays} 日
             </Text>
 
-            <Text style={{ fontSize: 16 }}>
-              今年合計：{summary.yearTotal} 分
-              <Text style={{ fontSize: 11, color: "#888" }}>
-                {"  ※ 1分 = 約1g体脂肪換算"}
+            <View style={{ flexDirection: "row", alignItems: "baseline" }}>
+              <Text style={{ fontSize: 16 }}>
+                今年合計：{summary.yearTotal} 分
               </Text>
-            </Text>
+
+              <Text style={{ fontSize: 11, color: "#888", marginLeft: 6 }}>
+                ※ 1分 ≒ 1g体脂肪換算
+              </Text>
+            </View>
           </View>
 
         </View>
