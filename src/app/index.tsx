@@ -1,6 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -86,17 +85,9 @@ export default function HomeScreen() {
     setSelectedMinutes(obj?.[dateInfo.key]?.minutes ?? null);
   };
 
-  // 初回
   useEffect(() => {
     reload();
   }, []);
-
-  // タブ切り替え時（これが本体）
-  useFocusEffect(
-    useCallback(() => {
-      reload();
-    }, [dateInfo.key])
-  );
 
   useEffect(() => {
     const value = data[dateInfo.key];
@@ -223,13 +214,13 @@ export default function HomeScreen() {
               onChangeText={setMemo}
               placeholder="メモ"
               multiline
-              numberOfLines={4}
+              numberOfLines={3}
               textAlignVertical="top"
               style={{
                 backgroundColor: "white",
                 padding: 12,
                 borderRadius: 10,
-                height: 100,
+                height: 80,
               }}
             />
           </View>
@@ -259,12 +250,26 @@ export default function HomeScreen() {
             <Text style={{ fontSize: 16, fontWeight: "bold" }}>
               今月合計：{summary.monthTotal} 分
             </Text>
+
             <Text style={{ fontSize: 16 }}>
               実施日数：{summary.activeDays} 日
             </Text>
-            <Text style={{ fontSize: 16 }}>
-              今年合計：{summary.yearTotal} 分
-            </Text>
+
+            {/* ここだけ横並び */}
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <Text style={{ fontSize: 16 }}>
+                今年合計：{summary.yearTotal} 分
+              </Text>
+
+              <Text style={{
+                fontSize: 11,
+                color: "#888",
+                marginLeft: 8,
+              }}>
+                ※ 1分 ≒ 体脂肪1g減（超概算）
+              </Text>
+            </View>
+
           </View>
 
         </View>
