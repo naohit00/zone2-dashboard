@@ -32,4 +32,4 @@ export default function AppTabs() {
       </NativeTabs.Trigger>
     </NativeTabs>
   );
-}
+} 
