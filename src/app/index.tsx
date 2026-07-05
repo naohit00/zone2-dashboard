@@ -153,7 +153,11 @@ export default function HomeScreen() {
         <View style={{ padding: 24 }}>
 
           {/* 日付 */}
-          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 20 }}>
+          <View style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            marginBottom: 20
+          }}>
             <Pressable onPress={() => changeDay(-1)}>
               <Text style={{ fontSize: 22 }}>＜</Text>
             </Pressable>
@@ -182,7 +186,7 @@ export default function HomeScreen() {
             </Text>
           </View>
 
-          {/* 選択 */}
+          {/* 時間選択 */}
           <View style={{ flexDirection: "row", gap: 10, marginBottom: 20 }}>
             {[20, 30, 40].map((min) => {
               const selected = selectedMinutes === min;
@@ -207,20 +211,20 @@ export default function HomeScreen() {
             })}
           </View>
 
-          {/* Memo */}
+          {/* Memo（2行くらい） */}
           <View style={{ marginBottom: 16 }}>
             <TextInput
               value={memo}
               onChangeText={setMemo}
               placeholder="メモ"
               multiline
-              numberOfLines={3}
+              numberOfLines={2}
               textAlignVertical="top"
               style={{
                 backgroundColor: "white",
                 padding: 12,
                 borderRadius: 10,
-                height: 80,
+                height: 70,
               }}
             />
           </View>
@@ -255,21 +259,12 @@ export default function HomeScreen() {
               実施日数：{summary.activeDays} 日
             </Text>
 
-            {/* ここだけ横並び */}
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text style={{ fontSize: 16 }}>
-                今年合計：{summary.yearTotal} 分
+            <Text style={{ fontSize: 16 }}>
+              今年合計：{summary.yearTotal} 分
+              <Text style={{ fontSize: 11, color: "#888" }}>
+                {"  ※ 1分 = 約1g体脂肪換算"}
               </Text>
-
-              <Text style={{
-                fontSize: 11,
-                color: "#888",
-                marginLeft: 8,
-              }}>
-                ※ 1分 ≒ 体脂肪1g減（超概算）
-              </Text>
-            </View>
-
+            </Text>
           </View>
 
         </View>

@@ -27,7 +27,6 @@ export default function CalendarScreen() {
     setData(json ? JSON.parse(json) : {});
   };
 
-  // ✅ タブに戻ったとき必ず再読み込み
   useFocusEffect(
     useCallback(() => {
       load();
@@ -98,6 +97,21 @@ export default function CalendarScreen() {
 
   const todayKey = formatKey(new Date());
 
+  const monthTotal = Object.entries(data).reduce((sum, [key, value]) => {
+    const d = new Date(key);
+
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      const minutes =
+        typeof value === "number"
+          ? value
+          : value?.minutes ?? 0;
+
+      return sum + minutes;
+    }
+
+    return sum;
+  }, 0);
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: "#f5f5f5" }}>
       <View style={{ padding: 20 }}>
@@ -125,7 +139,8 @@ export default function CalendarScreen() {
             </Pressable>
 
             <Pressable onPress={nextMonth}>
-              <Text style={{ fontSize: 22 }}>＞</Text>
+              <Text style={{ fontSize: 22 }}>＞
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -133,7 +148,10 @@ export default function CalendarScreen() {
         {/* 曜日 */}
         <View style={{ flexDirection: "row", marginBottom: 6 }}>
           {weekLabels.map(w => (
-            <Text key={w} style={{ flex: 1, textAlign: "center", fontSize: 12 }}>
+            <Text
+              key={w}
+              style={{ flex: 1, textAlign: "center", fontSize: 12 }}
+            >
               {w}
             </Text>
           ))}
@@ -177,9 +195,32 @@ export default function CalendarScreen() {
           })}
         </View>
 
+        {/* 月合計（右寄せ・1行） */}
+        <View
+          style={{
+            marginTop: 12,
+            flexDirection: "row",
+            justifyContent: "flex-end",
+            alignItems: "baseline",
+          }}
+        >
+          <Text style={{ fontSize: 11, color: "#888", marginRight: 6 }}>
+            {year}.{month + 1} 合計
+          </Text>
+
+          <Text style={{ fontSize: 16, fontWeight: "600", color: "#333" }}>
+            {monthTotal} 分
+          </Text>
+        </View>
+
         {/* 詳細 */}
         {selectedDate && (
-          <View style={{ marginTop: 20, backgroundColor: "#fff", padding: 16, borderRadius: 12 }}>
+          <View style={{
+            marginTop: 20,
+            backgroundColor: "#fff",
+            padding: 16,
+            borderRadius: 12,
+          }}>
             <Text style={{ color: "#666" }}>{selectedDate}</Text>
             <Text style={{ fontSize: 22, fontWeight: "bold" }}>
               {getValue(selectedDate)} 分
