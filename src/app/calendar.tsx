@@ -22,23 +22,23 @@ export default function CalendarScreen() {
 
   const weekLabels = ["月", "火", "水", "木", "金", "土", "日"];
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const json = await AsyncStorage.getItem(STORAGE_KEY);
     setData(json ? JSON.parse(json) : {});
-  };
+  }, []);
 
-  // タブ復帰時リロード（expo-router版）
+  // ✅ タブ復帰時に必ず最新化
   useFocusEffect(
     useCallback(() => {
       load();
-    }, [])
+    }, [load])
   );
 
   const getValue = (key: string) => {
     const v = data[key];
     if (!v) return 0;
     if (typeof v === "number") return v;
-    return v.minutes ?? 0;
+    return v?.minutes ?? 0;
   };
 
   const getMemo = (key: string) => {
@@ -93,19 +93,11 @@ export default function CalendarScreen() {
 
   const todayKey = formatKey(new Date());
 
-  // 月合計（表示している月ベースで正しく算出）
   const monthTotal = Object.entries(data).reduce((sum, [key, value]) => {
     const d = new Date(key);
-
     if (d.getFullYear() === year && d.getMonth() === month) {
-      const minutes =
-        typeof value === "number"
-          ? value
-          : value?.minutes ?? 0;
-
-      return sum + minutes;
+      return sum + (typeof value === "number" ? value : value?.minutes ?? 0);
     }
-
     return sum;
   }, 0);
 
@@ -145,10 +137,7 @@ export default function CalendarScreen() {
         {/* 曜日 */}
         <View style={{ flexDirection: "row", marginBottom: 6 }}>
           {weekLabels.map(w => (
-            <Text
-              key={w}
-              style={{ flex: 1, textAlign: "center", fontSize: 12 }}
-            >
+            <Text key={w} style={{ flex: 1, textAlign: "center", fontSize: 12 }}>
               {w}
             </Text>
           ))}
@@ -192,20 +181,18 @@ export default function CalendarScreen() {
           })}
         </View>
 
-        {/* 月合計（右下・1行） */}
-        <View
-          style={{
-            marginTop: 12,
-            flexDirection: "row",
-            justifyContent: "flex-end",
-            alignItems: "baseline",
-          }}
-        >
+        {/* 月合計 */}
+        <View style={{
+          marginTop: 12,
+          flexDirection: "row",
+          justifyContent: "flex-end",
+          alignItems: "baseline",
+        }}>
           <Text style={{ fontSize: 11, color: "#888", marginRight: 6 }}>
             {year}.{month + 1} 合計
           </Text>
 
-          <Text style={{ fontSize: 16, fontWeight: "600", color: "#333" }}>
+          <Text style={{ fontSize: 16, fontWeight: "600" }}>
             {monthTotal} 分
           </Text>
         </View>
@@ -219,12 +206,10 @@ export default function CalendarScreen() {
             borderRadius: 12,
           }}>
             <Text style={{ color: "#666" }}>{selectedDate}</Text>
-
             <Text style={{ fontSize: 22, fontWeight: "bold" }}>
               {getValue(selectedDate)} 分
             </Text>
-
-            <Text style={{ marginTop: 8, color: "#444" }}>
+            <Text style={{ marginTop: 8 }}>
               {getMemo(selectedDate) || "メモなし"}
             </Text>
           </View>
